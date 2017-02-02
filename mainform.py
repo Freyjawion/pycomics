@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import sys
-from PyQt5.QtWidgets import QMainWindow, QTextEdit, QAction, QApplication, QFileDialog ,QLabel
+from PyQt5.QtWidgets import QMainWindow, QTextEdit, QAction, QApplication, QFileDialog ,QLabel , QScrollArea 
 from PyQt5.QtGui import QIcon, QPixmap
 
 
@@ -16,8 +16,14 @@ class Example(QMainWindow):
         
     def initUI(self):               
         
+
+
         self.ImageViewer = QLabel()
-        self.setCentralWidget(self.ImageViewer)
+
+
+        self.scrollArea = QScrollArea(self)
+        self.scrollArea.setGeometry(0,50,400,400)
+        self.scrollArea.setWidget(self.ImageViewer)
 
         exitAction = QAction(QIcon('icon\\logout.png'), 'Exit', self)
         exitAction.setShortcut('Ctrl+Q')
@@ -49,7 +55,7 @@ class Example(QMainWindow):
         if fname[0]:
             self.pixmap = QPixmap(fname[0])
             self.ImageViewer.setPixmap(self.pixmap)
-            self.resize(self.pixmap.width(),self.pixmap.height())
+            self.ImageViewer.resize(self.pixmap.width(),self.pixmap.height())
 
         
         
