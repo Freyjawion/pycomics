@@ -21,7 +21,7 @@ class Pycomics(QMainWindow):
         self.InitActions()
         self.InitMenus()
         self.InitToolbar()
-        self.statusBar()
+        self.InitStatusbar()
              
     def initUI(self):               
         
@@ -86,6 +86,15 @@ class Pycomics(QMainWindow):
         toolbar.addAction(self.NextAction)
         toolbar.addAction(self.LastAction)
 
+    def InitStatusbar(self):
+        self.statusbar = self.statusBar()
+        self.pathstatus = QLabel()
+        self.filenamestatus = QLabel()
+        self.indexstatus = QLabel()
+        self.statusbar.addWidget(self.pathstatus)
+        self.statusbar.addPermanentWidget(self.filenamestatus)
+        self.statusbar.addPermanentWidget(self.indexstatus)
+
     def ShowOpenFileDialog(self):
         path = QFileDialog.getOpenFileName(self, 'Open File', '', 'Support Files (*.png *.jpeg *.jpg *.bmp *.zip *.rar *.7z);;Images (*.png *.jpeg *.jpg *.bmp);;Zip (*.zip)')
         if path[0]:
@@ -106,6 +115,9 @@ class Pycomics(QMainWindow):
             return
         self.ImageViewer.setPixmap(self.pixmap)
         self.ResizeViewer()
+        self.pathstatus.setText(self.allfiles[self.fileindex])
+        self.filenamestatus.setText(os.path.split(self.allfiles[self.fileindex])[1])
+        self.indexstatus.setText(str(self.fileindex) + '/' + str(len(self.allfiles)+1))
 
     def ResizeViewer(self):
         self.ImageViewer.resize(self.pixmap.width(),self.pixmap.height())
