@@ -10,6 +10,8 @@ import zipfile
 import lzma
 import rarfile
 from io import StringIO
+from natsort import natsorted, ns
+from operator import itemgetter
 
 __Title__ = 'Pycomics'
 __Version__ = 'beta 0.01'
@@ -21,13 +23,13 @@ class Pycomics(QMainWindow):
     def __init__(self):
         super().__init__()
         
-        self.initUI()
+        self.InitUI()
         self.InitActions()
         self.InitMenus()
         self.InitToolbar()
         self.InitStatusbar()
              
-    def initUI(self):               
+    def InitUI(self):               
         
         self.ImageViewer = QLabel()
         self.scrollArea = QScrollArea(self)
@@ -44,12 +46,12 @@ class Pycomics(QMainWindow):
         self.ExitAction.setStatusTip('Exit application')
         self.ExitAction.triggered.connect(self.close)
 
-        self.OpenAction = QAction(QIcon('icon' + os.sep + 'file.png'), 'Open', self)
+        self.OpenAction = QAction(QIcon('icon' + os.sep + 'file.png'), 'Open Files', self)
         self.OpenAction .setShortcut('Ctrl+O')
         self.OpenAction .setStatusTip('Open Files')
         self.OpenAction .triggered.connect(self.OpenFile)
 
-        self.OpenFAction = QAction(QIcon('icon' + os.sep + 'file.png'), 'Open', self)
+        self.OpenFAction = QAction(QIcon('icon' + os.sep + 'file.png'), 'Open Folder', self)
         self.OpenFAction .setShortcut('Ctrl+O')
         self.OpenFAction .setStatusTip('Open Folder')
         self.OpenFAction .triggered.connect(self.OpenFolder)
@@ -133,44 +135,64 @@ class Pycomics(QMainWindow):
 
     def LoadFile(self):
         fname = self.allfiles[self.fileindex]
-        self.archive,ext = self.iscompressed(fname)
-        if self.archive:
+        self.IsArchive,ext = self.IsCompressed(fname)
+        if self.IsArchive:
+            
             if ext == '.zip':
-                self.AcrhiveFile = zipfile.ZipFile(fname, 'r')
-                AcrhiveFileList = self.AcrhiveFile.namelist()
+                self.ArchiveFile = zipfile.ZipFile(fname, 'r')
+                AcrhiveFileList = self.ArchiveFile.namelist()
+                self.ArchiveInfo = self.ArchiveFile.infolist()
+                self.IsEncrypted = self.ArchiveInfo[0].flag_bits & 0x1 
+                if self.IsEncrypted:
+                    self.Pass,self.Pwd = self.DecryptArchive(self.ArchiveFile)
+                    if self.Pass:
+                        pass
+                    else:
+                        self.LoadFailed()
+                        return
+                else: 
+                    self.Pwd = None
                 self.AllFilesInArchive = self.GetAllFilesInArchive(AcrhiveFileList)
                 self.IndexInArchive = 0
                 self.ShowImage()
             elif ext == '.rar':
-                self.AcrhiveFile = rarfile.RarFile(fname, 'r')
-                AcrhiveFileList = self.AcrhiveFile.namelist()
+                self.ArchiveFile = rarfile.RarFile(fname, 'r')
+                AcrhiveFileList = self.ArchiveFile.namelist()
+                self.ArchiveInfo = self.ArchiveFile.infolist()
+                self.IsEncrypted = self.ArchiveInfo[0].needs_password()
+                if self.IsEncrypted:
+                    self.Pass,self.Pwd = self.DecryptArchive(self.ArchiveFile)
+                    if self.Pass:
+                        pass
+                    else:
+                        self.LoadFailed()
+                        return
+                else: 
+                    self.Pwd = None
                 self.AllFilesInArchive = self.GetAllFilesInArchive(AcrhiveFileList)
                 self.IndexInArchive = 0
                 self.ShowImage()
             else:
-                self.ImageViewer.setText("Cannot load %s." % fname)
-                self.pathstatus.setText(self.allfiles[self.fileindex])
-                self.filenamestatus.setText(os.path.split(self.allfiles[self.fileindex])[1])
-                self.indexstatus.setText(str(self.fileindex+1) + '/' + str(len(self.allfiles)))
+                self.LoadFailed()
         else:
             self.ShowImage()
 
     def ShowImage(self):
-        if self.archive:
+        if self.IsArchive:
             fname = self.AllFilesInArchive[self.IndexInArchive]
-            data =self.AcrhiveFile.read(fname)
+            data =self.ArchiveFile.read(fname,self.Pwd)
             self.pixmap = QPixmap.fromImage(QImage.fromData(data))
         else:
             fname = self.allfiles[self.fileindex]
             self.pixmap = QPixmap(fname)
 
         if self.pixmap.isNull():
-            self.ImageViewer.setText("Cannot load %s." % fname)
+            self.ImageViewer.setText("Can not load %s." % fname)
         else:
             self.ImageViewer.setPixmap(self.pixmap)
             self.ResizeViewer()
 
-        if self.archive:
+        if self.IsArchive:
             self.pathstatus.setText(self.allfiles[self.fileindex])
             self.filenamestatus.setText(fname)
             self.indexstatus.setText(str(self.IndexInArchive+1) + '/' + str(len(self.AllFilesInArchive)))
@@ -183,15 +205,23 @@ class Pycomics(QMainWindow):
         self.ImageViewer.resize(self.pixmap.width(),self.pixmap.height())
         self.ImageViewer.setAlignment(Qt.AlignCenter)
     
-    def supportfile(self,fname):
+    def SupportFile(self,fname):
         supportext =['.jpg','.png','.jpeg','.bmp','.zip','.rar','.7z']
         ext = os.path.splitext(fname)[1]
         if ext in supportext:
             return True
         else:
             return False
+    
+    def SupportFileInArchive(self,fname):
+        supportext =['.jpg','.png','.jpeg','.bmp']
+        ext = os.path.splitext(fname)[1]
+        if ext in supportext:
+            return True
+        else:
+            return False
 
-    def iscompressed(self,fname):
+    def IsCompressed(self,fname):
         compressed =['.zip','.rar','.7z']
         ext = os.path.splitext(fname)[1]
         if ext in compressed:
@@ -204,36 +234,42 @@ class Pycomics(QMainWindow):
         for root, directories, files in os.walk(folder):
             for filename in files:
                 filepath = os.path.join(root, filename)
-                if self.supportfile(filepath):
+                if self.SupportFile(filepath):
                     file_paths.append(filepath)
-        file_paths.sort()
+        file_paths = natsorted(file_paths,alg=ns.PATH)
         return file_paths
 
     def GetAllFilesInArchive(self,namelist):
-        file_paths = []
+        support_file = []
         for files in namelist:
-                if self.supportfile(files):
-                    file_paths.append(files)
-        file_paths.sort()
-        return file_paths
+                if self.SupportFileInArchive(files):
+                    support_file.append(files)
+        file_paths = natsorted(support_file,alg=ns.PATH)
+        return support_file
 
     def PrevPage(self):
-        if self.archive:
+        if self.IsArchive:
             if self.IndexInArchive>0:
                 self.IndexInArchive -=1
                 self.ShowImage()
+            else:
+                if self.fileindex>0:
+                    self.ArchiveFile.close()
+                    self.fileindex -=1
+                    self.LoadFile()
         else:
             if self.fileindex>0:
                 self.fileindex -=1
                 self.LoadFile()
 
     def NextPage(self):
-        if self.archive:
+        if self.IsArchive:
             if self.IndexInArchive < len(self.AllFilesInArchive)-1:
                 self.IndexInArchive +=1
                 self.ShowImage()
             else:
                 if self.fileindex < len(self.allfiles)-1:
+                    self.ArchiveFile.close()
                     self.fileindex +=1
                     self.LoadFile()
         else:
@@ -242,7 +278,7 @@ class Pycomics(QMainWindow):
                 self.LoadFile()
 
     def FirstPage(self):
-        if self.archive:
+        if self.IsArchive:
             self.IndexInArchive = 0
             self.ShowImage()
         else:
@@ -250,12 +286,37 @@ class Pycomics(QMainWindow):
             self.LoadFile()
 
     def LastPage(self):
-        if self.archive:
+        if self.IsArchive:
             self.IndexInArchive = len(self.AllFilesInArchive)-1
             self.ShowImage()
         else:
             self.fileindex = len(self.allfiles)-1
             self.LoadFile()
+
+    def LoadPwd(self):
+        pwdf = open('password.pwd','rb')
+        self.PwdList = pwdf.read().splitlines()
+        pwdf.close()
+
+    def DecryptArchive(self,archivefile):
+        self.LoadPwd()
+        for password in self.PwdList:
+            try:
+               data = self.ArchiveFile.read(self.ArchiveInfo[0].filename,password)
+               return True,password
+            except:
+                pass
+        return False,None
+
+    def LoadFailed(self):
+        if self.IsArchive:
+            self.IsArchive = False
+        fname = self.allfiles[self.fileindex]
+        self.ImageViewer.setText("Can not load %s." % fname)
+        self.filenamestatus.setText(os.path.split(fname)[1])
+        self.indexstatus.setText(str(self.fileindex+1) + '/' + str(len(self.allfiles)))
+        self.ImageViewer.resize(300,50)
+        self.ImageViewer.setAlignment(Qt.AlignCenter)
 
 
 if __name__ == '__main__':
