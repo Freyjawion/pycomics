@@ -4,7 +4,7 @@
 import sys
 import os
 from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QMainWindow, QTextEdit, QAction, QApplication, QFileDialog ,QLabel , QScrollArea ,QMessageBox
+from PyQt5.QtWidgets import QMainWindow, QTextEdit, QAction, QApplication, QFileDialog, QLabel, QScrollArea, QMessageBox, QListView, QDialog
 from PyQt5.QtGui import QIcon, QPixmap, QImage 
 import zipfile
 import lzma
@@ -18,7 +18,6 @@ __Version__ = 'beta 0.01'
 
 
 class Pycomics(QMainWindow):
-    
 
     def __init__(self):
         super().__init__()
@@ -28,6 +27,8 @@ class Pycomics(QMainWindow):
         self.InitMenus()
         self.InitToolbar()
         self.InitStatusbar()
+
+        self.PwdDialog = PwdManager()
              
     def InitUI(self):               
         
@@ -76,6 +77,10 @@ class Pycomics(QMainWindow):
         self.LastAction .setStatusTip('LastPage')
         self.LastAction .triggered.connect(self.LastPage)
 
+        self.PwdManager = QAction(QIcon('icon' + os.sep + 'file.png'), 'Password Manager', self)
+        self.PwdManager .setStatusTip('Password Manager')
+        self.PwdManager .triggered.connect(self.ShowPwdManager)
+
     def InitMenus(self):
         menubar = self.menuBar()
         fileMenu = menubar.addMenu('&File')
@@ -88,6 +93,9 @@ class Pycomics(QMainWindow):
         fileMenu.addAction(self.PrevAction)
         fileMenu.addAction(self.NextAction)
         fileMenu.addAction(self.LastAction)
+
+        fileMenu = menubar.addMenu('&Settings')
+        fileMenu.addAction(self.PwdManager)
 
     def InitToolbar(self):
         toolbar = self.addToolBar('Toolbar')
@@ -318,9 +326,38 @@ class Pycomics(QMainWindow):
         self.ImageViewer.resize(300,50)
         self.ImageViewer.setAlignment(Qt.AlignCenter)
 
+    def ShowPwdManager(self):
+        self.PwdDialog.exec_()
 
-if __name__ == '__main__':
-    
+
+class PwdManager(QDialog):
+    def __init__(self):
+        super().__init__()
+        self.setWindowFlags(Qt.WindowCloseButtonHint | Qt.WindowTitleHint)
+
+    def showEvent(self,event):
+        self.setWindowTitle('Password Manager')
+        self.setFixedSize(400,300)
+        self.PwdViewer = QListView()
+        self.PwdViewer.resize(100,300)
+        self.scrollArea = QScrollArea(self)
+        self.scrollArea.setWidget(self.PwdViewer)
+        self.scrollArea.setAlignment(Qt.AlignCenter)
+
+
+        self.center()
+
+    def center(self):
+        frameGm = self.frameGeometry()
+        screen = QApplication.desktop().screenNumber(QApplication.desktop().cursor().pos())
+        centerPoint = QApplication.desktop().screenGeometry(screen).center()
+        frameGm.moveCenter(centerPoint)
+        self.move(frameGm.topLeft()) 
+
+def main():
     app = QApplication(sys.argv)
     ex = Pycomics()
     sys.exit(app.exec_())
+
+if __name__ == '__main__':
+    main()
