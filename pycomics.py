@@ -338,7 +338,7 @@ class PwdManager(QDialog):
         super().__init__()
         self.setWindowFlags(Qt.WindowCloseButtonHint | Qt.WindowTitleHint)
         self.PwdViewer = QListView()
-        self.PwdViewer.clicked.connect(self.GetPwd)
+        self.PwdViewer.clicked.connect(self.ClickPwd)
         self.AddButton = QPushButton('Add')
         self.AddButton.clicked.connect(self.AddPwd)
         self.DelButton = QPushButton('Delete')
@@ -364,11 +364,15 @@ class PwdManager(QDialog):
         self.setLayout(MainBox)
         self.center()
         self.LoadPwdToList()
-
+        if self.Model.rowCount() == 0:
+            self.AddPwd()
 
     def closeEvent(self,event):
-        pass
-
+        self.RemoveEmpty()
+        pwdf = open('password.pwd','w')
+        for index in range(self.Model.rowCount()):
+            pwdf.write(self.Model.data(self.Model.index(index,0))+'\n')
+        pwdf.close()
 
     def center(self):
         frameGm = self.frameGeometry()
@@ -391,9 +395,16 @@ class PwdManager(QDialog):
         self.PwdViewer.setModel(self.Model)
         self.PwdViewer.setCurrentIndex(self.Model.index(0,0))
         self.GetPwd(self.PwdViewer.currentIndex())
+
+    def ClickPwd(self,index):
+        self.RemoveEmpty()
+        if self.Model.rowCount() == 0:
+            self.AddPwd()
+        self.GetPwd(index)
     
     def GetPwd(self,index):
         self.PwdBox.setText(self.Model.data(index))
+        self.PwdBox.setFocus()
 
     def PwdChanged(self):
          self.Model.setData(self.PwdViewer.currentIndex(),self.PwdBox.text())
@@ -403,20 +414,20 @@ class PwdManager(QDialog):
     def DelPwd(self):
         self.Model.removeRow(self.PwdViewer.currentIndex().row())
         self.GetPwd(self.PwdViewer.currentIndex())
+        if self.Model.rowCount() == 0:
+            self.AddPwd()
         
     def AddPwd(self):
         item = QStandardItem()
         item.setEditable(False)
         self.Model.appendRow(item)
-        self.PwdViewer.setCurrentIndex(self.Model.index(self.Model.rowCount(),0))
+        self.PwdViewer.setCurrentIndex(self.Model.index(self.Model.rowCount()-1,0))
         self.GetPwd(self.PwdViewer.currentIndex())
 
-
-
-
-
-
-
+    def RemoveEmpty(self):
+        for item in self.Model.findItems('',Qt.MatchFixedString):
+            self.Model.removeRow(item.row())
+            
 
 def main():
     app = QApplication(sys.argv)
