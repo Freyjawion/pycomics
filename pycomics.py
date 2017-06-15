@@ -8,7 +8,6 @@ from PyQt5.QtWidgets import QMainWindow, QTextEdit, QAction, QApplication, QFile
 from PyQt5.QtWidgets import QScrollArea, QMessageBox, QListView, QDialog, QHBoxLayout, QVBoxLayout, QPushButton
 from PyQt5.QtGui import QIcon, QPixmap, QImage, QStandardItem, QStandardItemModel 
 import zipfile
-import lzma
 import rarfile
 from io import StringIO
 from natsort import natsorted, ns
@@ -144,10 +143,10 @@ class Pycomics(QMainWindow):
 
     def LoadFile(self):
         fname = self.allfiles[self.fileindex]
-        self.IsArchive,ext = self.IsCompressed(fname)
+        self.IsArchive,self.ext = self.IsCompressed(fname)
         if self.IsArchive:
             
-            if ext == '.zip':
+            if self.ext == '.zip':
                 self.ArchiveFile = zipfile.ZipFile(fname, 'r')
                 AcrhiveFileList = self.ArchiveFile.namelist()
                 self.ArchiveInfo = self.ArchiveFile.infolist()
@@ -164,7 +163,7 @@ class Pycomics(QMainWindow):
                 self.AllFilesInArchive = self.GetAllFilesInArchive(AcrhiveFileList)
                 self.IndexInArchive = 0
                 self.ShowImage()
-            elif ext == '.rar':
+            elif self.ext == '.rar':
                 self.ArchiveFile = rarfile.RarFile(fname, 'r')
                 AcrhiveFileList = self.ArchiveFile.namelist()
                 self.ArchiveInfo = self.ArchiveFile.infolist()
@@ -181,6 +180,8 @@ class Pycomics(QMainWindow):
                 self.AllFilesInArchive = self.GetAllFilesInArchive(AcrhiveFileList)
                 self.IndexInArchive = 0
                 self.ShowImage()
+            elif self.ext == '.7z':
+                self.LoadFailed()
             else:
                 self.LoadFailed()
         else:
@@ -305,7 +306,10 @@ class Pycomics(QMainWindow):
     def LoadPwd(self):
         if not os.path.exists(r'password.pwd'):
             open("password.pwd","wb").close()
-        pwdf = open('password.pwd','rb')
+        if self.ext == '.zip':
+            pwdf = open('password.pwd','rb')
+        else:
+            pwdf = open('password.pwd','r')
         self.PwdList = pwdf.read().splitlines()
         pwdf.close()
 
