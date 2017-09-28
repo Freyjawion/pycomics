@@ -3,15 +3,17 @@
 
 import sys
 import os
-from PyQt5.QtCore import Qt, QItemSelectionModel
-from PyQt5.QtWidgets import QMainWindow, QTextEdit, QAction, QApplication, QFileDialog, QLabel, QLineEdit
-from PyQt5.QtWidgets import QScrollArea, QMessageBox, QListView, QDialog, QHBoxLayout, QVBoxLayout, QPushButton
-from PyQt5.QtGui import QIcon, QPixmap, QImage, QStandardItem, QStandardItemModel
+import configparser
 import zipfile
 import rarfile
-from io import StringIO
+from PyQt5.QtCore import Qt, QItemSelectionModel
+from PyQt5.QtWidgets import QMainWindow, QTextEdit, QAction
+from PyQt5.QtWidgets import QApplication, QFileDialog, QLabel, QLineEdit
+from PyQt5.QtWidgets import QScrollArea, QMessageBox, QListView, QDialog
+from PyQt5.QtWidgets import QHBoxLayout, QVBoxLayout, QPushButton
+from PyQt5.QtGui import QIcon, QPixmap, QImage, QStandardItem, QStandardItemModel
+
 from natsort import natsorted, ns
-from operator import itemgetter
 
 __Title__ = 'Pycomics'
 __Version__ = 'alpha 0.01'
@@ -22,21 +24,47 @@ class Pycomics(QMainWindow):
     def __init__(self):
         super().__init__()
         
+        self.InitConfig()
         self.InitUI()
         self.InitActions()
         self.InitMenus()
         self.InitToolbar()
         self.InitStatusbar()
-
         self.PwdDialog = PwdManager()
-             
+
+    def closeEvent(self,event):
+        self.SaveConfig()
+    
+    def InitConfig(self):
+        config = configparser.ConfigParser()
+        config.read('pycomics.ini')
+        
+        self.lastpath = config.get('DEFAULT','lastpath',fallback='')
+        self.initx = config.getint('DEFAULT','x',fallback=50) 
+        self.inity = config.getint('DEFAULT','y',fallback=50) 
+        self.initheight = config.getint('DEFAULT','height',fallback = 600) or 600
+        self.initwidth = config.getint('DEFAULT','width',fallback = 800) or 800
+
+    def SaveConfig(self):
+        config = configparser.ConfigParser()
+        config.read('pycomics.ini')
+
+        config.set('DEFAULT','lastpath',self.lastpath)
+        config.set('DEFAULT','x',str(self.geometry().x()))
+        config.set('DEFAULT','y',str(self.geometry().y()))
+        config.set('DEFAULT','height',str(self.geometry().height()))
+        config.set('DEFAULT','width',str(self.geometry().width())) 
+
+        with open('pycomics.ini','w') as configfile:
+            config.write(configfile)
+
     def InitUI(self):
         self.ImageViewer = QLabel()
         self.scrollArea = QScrollArea(self)
         self.scrollArea.setWidget(self.ImageViewer)
         self.setCentralWidget(self.scrollArea)
         self.scrollArea.setAlignment(Qt.AlignCenter)
-        self.setGeometry(50, 50, 800, 600)
+        self.setGeometry(self.initx,self.inity ,self.initwidth,self.initheight)
         self.setWindowTitle(__Title__ + ' ' + __Version__)    
         self.show()
 
