@@ -44,16 +44,20 @@ class Pycomics(QMainWindow):
         self.inity = config.getint('DEFAULT','y',fallback=50) 
         self.initheight = config.getint('DEFAULT','height',fallback = 600) or 600
         self.initwidth = config.getint('DEFAULT','width',fallback = 800) or 800
+        self.initwindowstate = config.getint('DEFAULT','windowstate',fallback=0) 
 
     def SaveConfig(self):
         config = configparser.ConfigParser()
         config.read('pycomics.ini')
-
+        window_state = str(int(self.windowState()))
         config.set('DEFAULT','lastpath',self.lastpath)
-        config.set('DEFAULT','x',str(self.geometry().x()))
-        config.set('DEFAULT','y',str(self.geometry().y()))
-        config.set('DEFAULT','height',str(self.geometry().height()))
-        config.set('DEFAULT','width',str(self.geometry().width())) 
+        config.set('DEFAULT','windowstate',window_state)
+        if window_state == '0':
+            config.set('DEFAULT','x',str(self.geometry().x()))
+            config.set('DEFAULT','y',str(self.geometry().y()))
+            config.set('DEFAULT','height',str(self.geometry().height()))
+            config.set('DEFAULT','width',str(self.geometry().width()))
+        
 
         with open('pycomics.ini','w') as configfile:
             config.write(configfile)
@@ -65,6 +69,10 @@ class Pycomics(QMainWindow):
         self.setCentralWidget(self.scrollArea)
         self.scrollArea.setAlignment(Qt.AlignCenter)
         self.setGeometry(self.initx,self.inity ,self.initwidth,self.initheight)
+        if self.initwindowstate == 1:
+            self.setWindowState(Qt.WindowMinimized)
+        elif self.initwindowstate == 2:
+            self.setWindowState(Qt.WindowMaximized)
         self.setWindowTitle(__Title__ + ' ' + __Version__)    
         self.show()
 
