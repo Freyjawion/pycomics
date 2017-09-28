@@ -6,7 +6,7 @@ import os
 from PyQt5.QtCore import Qt, QItemSelectionModel
 from PyQt5.QtWidgets import QMainWindow, QTextEdit, QAction, QApplication, QFileDialog, QLabel, QLineEdit
 from PyQt5.QtWidgets import QScrollArea, QMessageBox, QListView, QDialog, QHBoxLayout, QVBoxLayout, QPushButton
-from PyQt5.QtGui import QIcon, QPixmap, QImage, QStandardItem, QStandardItemModel 
+from PyQt5.QtGui import QIcon, QPixmap, QImage, QStandardItem, QStandardItemModel
 import zipfile
 import rarfile
 from io import StringIO
@@ -14,7 +14,7 @@ from natsort import natsorted, ns
 from operator import itemgetter
 
 __Title__ = 'Pycomics'
-__Version__ = 'beta 0.01'
+__Version__ = 'alpha 0.01'
 
 
 class Pycomics(QMainWindow):
@@ -30,8 +30,7 @@ class Pycomics(QMainWindow):
 
         self.PwdDialog = PwdManager()
              
-    def InitUI(self):               
-        
+    def InitUI(self):
         self.ImageViewer = QLabel()
         self.scrollArea = QScrollArea(self)
         self.scrollArea.setWidget(self.ImageViewer)

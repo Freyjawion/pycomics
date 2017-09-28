@@ -18,12 +18,18 @@ base = None
 if sys.platform == 'win32':
     base = 'Win32GUI'
 
+includes = ['PyQt5.QtCore','PyQt5.QtWidgets','PyQt5.QtGui']
+excludes = []
+packages = []
 includefiles = ['unrar.exe','icon']
 
 options = {
     'build_exe': {
-        'includes': 'atexit',
-        'include_files':includefiles
+        'includes':includes,
+        'excludes':excludes,
+        'packages':packages,
+        'include_files':includefiles,
+        'compressed':True
     }
 }
 
@@ -33,7 +39,7 @@ executables = [
         initScript = None,
         base=base,
         targetName = "pycomics.exe",
-        icon = None)
+        icon = "icon.ico")
 ]
 
 
