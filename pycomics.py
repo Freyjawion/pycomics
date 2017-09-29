@@ -40,6 +40,7 @@ class Pycomics(QMainWindow):
         config.read('pycomics.ini')
         
         self.lastpath = config.get('DEFAULT','lastpath',fallback='')
+        self.initlastpathchecked = config.getint('DEFAULT','lastpathchecked',fallback=0)
         self.initx = config.getint('DEFAULT','x',fallback=50) 
         self.inity = config.getint('DEFAULT','y',fallback=50) 
         self.initheight = config.getint('DEFAULT','height',fallback = 600) or 600
@@ -51,13 +52,13 @@ class Pycomics(QMainWindow):
         config.read('pycomics.ini')
         window_state = str(int(self.windowState()))
         config.set('DEFAULT','lastpath',self.lastpath)
+        config.set('DEFAULT','lastpathchecked', '1' if self.LastPath.isChecked() else '0')
         config.set('DEFAULT','windowstate',window_state)
         if window_state == '0':
             config.set('DEFAULT','x',str(self.geometry().x()))
             config.set('DEFAULT','y',str(self.geometry().y()))
             config.set('DEFAULT','height',str(self.geometry().height()))
             config.set('DEFAULT','width',str(self.geometry().width()))
-        
 
         with open('pycomics.ini','w') as configfile:
             config.write(configfile)
@@ -68,13 +69,18 @@ class Pycomics(QMainWindow):
         self.scrollArea.setWidget(self.ImageViewer)
         self.setCentralWidget(self.scrollArea)
         self.scrollArea.setAlignment(Qt.AlignCenter)
+        self.setWindowTitle(__Title__ + ' ' + __Version__)
         self.setGeometry(self.initx,self.inity ,self.initwidth,self.initheight)
+        self.show()
         if self.initwindowstate == 1:
             self.setWindowState(Qt.WindowMinimized)
         elif self.initwindowstate == 2:
             self.setWindowState(Qt.WindowMaximized)
-        self.setWindowTitle(__Title__ + ' ' + __Version__)    
-        self.show()
+        elif self.initwindowstate == 3:
+            self.setWindowState(Qt.WindowMaximized)
+            self.setWindowState(Qt.WindowMinimized)
+    
+
 
     def InitActions(self):
         self.ExitAction = QAction(QIcon('icon' + os.sep + 'logout.png'), 'Exit', self)
@@ -116,6 +122,12 @@ class Pycomics(QMainWindow):
         self.PwdManager .setStatusTip('Password Manager')
         self.PwdManager .triggered.connect(self.ShowPwdManager)
 
+        self.LastPath = QAction(QIcon('icon' + os.sep + 'file.png'),'Last Path',self,checkable=True)
+        self.LastPath .setCheckable = True
+        self.LastPath .setStatusTip('LastPath')
+        if self.initlastpathchecked:
+            self.LastPath.setChecked(True)
+
     def InitMenus(self):
         menubar = self.menuBar()
         fileMenu = menubar.addMenu('&File')
@@ -131,15 +143,20 @@ class Pycomics(QMainWindow):
 
         fileMenu = menubar.addMenu('&Settings')
         fileMenu.addAction(self.PwdManager)
+        fileMenu.addAction(self.LastPath)
 
     def InitToolbar(self):
         toolbar = self.addToolBar('Toolbar')
         toolbar.addAction(self.OpenAction)
         toolbar.addAction(self.OpenFAction)
+        toolbar.addSeparator()
         toolbar.addAction(self.FirstAction)
         toolbar.addAction(self.PrevAction)
         toolbar.addAction(self.NextAction)
         toolbar.addAction(self.LastAction)
+        toolbar.addSeparator()
+        toolbar.addAction(self.LastPath)
+        toolbar.addSeparator()
         toolbar.addAction(self.ExitAction)
         
     def InitStatusbar(self):

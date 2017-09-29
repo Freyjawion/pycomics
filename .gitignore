@@ -90,3 +90,7 @@ ENV/
 
 # VScode settings
 .vscode
+
+# Pycomics
+password.pwd
+pycomics.ini
