@@ -94,3 +94,4 @@ ENV/
 # Pycomics
 password.pwd
 pycomics.ini
+setup.bat

@@ -12,7 +12,6 @@ from PyQt5.QtWidgets import QApplication, QFileDialog, QLabel, QLineEdit
 from PyQt5.QtWidgets import QScrollArea, QMessageBox, QListView, QDialog
 from PyQt5.QtWidgets import QHBoxLayout, QVBoxLayout, QPushButton
 from PyQt5.QtGui import QIcon, QPixmap, QImage, QStandardItem, QStandardItemModel
-
 from natsort import natsorted, ns
 
 __Title__ = 'Pycomics'
@@ -182,6 +181,7 @@ class Pycomics(QMainWindow):
         filepath = self.ShowOpenFileDialog()
         if filepath:
             folder,fname = os.path.split(filepath)
+            self.lastpath = folder
             self.allfiles = self.GetAllFiles(folder)
             self.fileindex = self.allfiles.index(filepath)
             self.LoadFile()
@@ -189,6 +189,7 @@ class Pycomics(QMainWindow):
     def OpenFolder(self):
         folder = self.ShowOpenFolderDialog()
         if folder:
+            self.lastpath = folder
             self.allfiles = self.GetAllFiles(folder)
             self.fileindex = 0
             self.LoadFile()
@@ -197,7 +198,6 @@ class Pycomics(QMainWindow):
         fname = self.allfiles[self.fileindex]
         self.IsArchive,self.ext = self.IsCompressed(fname)
         if self.IsArchive:
-            
             if self.ext == '.zip':
                 self.ArchiveFile = zipfile.ZipFile(fname, 'r')
                 AcrhiveFileList = self.ArchiveFile.namelist()
