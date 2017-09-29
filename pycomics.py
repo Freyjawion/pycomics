@@ -31,9 +31,9 @@ class Pycomics(QMainWindow):
         self.InitMenus()
         self.InitToolbar()
         self.InitStatusbar()
+        self.InitLastScene()
         self.PwdDialog = PwdManager()
-        if self.initlastpathchecked  and self.lastpath:
-            self.LoadFile(self.lastpath)
+
 
     def closeEvent(self,event):
         self.SaveConfig()
@@ -42,8 +42,11 @@ class Pycomics(QMainWindow):
         config = configparser.ConfigParser()
         config.read('pycomics.ini')
         
-        self.lastpath = config.get('DEFAULT','lastpath',fallback='')
-        self.initlastpathchecked = config.getint('DEFAULT','lastpathchecked',fallback=0)
+        self.path = config.get('DEFAULT','path',fallback='')
+        self.folder = config.get('DEFAULT','folder',fallback='')
+        self.lastscene = config.getboolean('DEFAULT','lastscene',fallback=False)
+        self.IsArchive = config.getboolean('DEFAULT','isarchive',fallback=False)
+        self.IndexInArchive = config.getint('DEFAULT','archiveindex',fallback=0)
         self.initx = config.getint('DEFAULT','x',fallback=50) 
         self.inity = config.getint('DEFAULT','y',fallback=50) 
         self.initheight = config.getint('DEFAULT','height',fallback = 600) or 600
@@ -54,8 +57,11 @@ class Pycomics(QMainWindow):
         config = configparser.ConfigParser()
         config.read('pycomics.ini')
         window_state = str(int(self.windowState()))
-        config.set('DEFAULT','lastpath',self.lastpath)
-        config.set('DEFAULT','lastpathchecked', '1' if self.LastPath.isChecked() else '0')
+        config.set('DEFAULT','path',self.path)
+        config.set('DEFAULT','folder',self.folder)
+        config.set('DEFAULT','lastscene', str(self.LastSceneAction.isChecked()))
+        config.set('DEFAULT','isarchive', str(self.IsArchive))
+        config.set('DEFAULT','archiveindex', str(self.IndexInArchive))
         config.set('DEFAULT','windowstate',window_state)
         if window_state == '0':
             config.set('DEFAULT','x',str(self.geometry().x()))
@@ -123,11 +129,11 @@ class Pycomics(QMainWindow):
         self.PwdManager .setStatusTip('Password Manager')
         self.PwdManager .triggered.connect(self.ShowPwdManager)
 
-        self.LastPath = QAction(QIcon('icon' + os.sep + 'file.png'),'Last Path',self,checkable=True)
-        self.LastPath .setCheckable = True
-        self.LastPath .setStatusTip('LastPath')
-        if self.initlastpathchecked:
-            self.LastPath.setChecked(True)
+        self.LastSceneAction = QAction(QIcon('icon' + os.sep + 'file.png'),'Last Scene',self,checkable=True)
+        self.LastSceneAction .setCheckable = True
+        self.LastSceneAction .setStatusTip('LastSceneAction')
+        if self.lastscene:
+            self.LastSceneAction.setChecked(True)
 
     def InitMenus(self):
         menubar = self.menuBar()
@@ -144,7 +150,7 @@ class Pycomics(QMainWindow):
 
         fileMenu = menubar.addMenu('&Settings')
         fileMenu.addAction(self.PwdManager)
-        fileMenu.addAction(self.LastPath)
+        fileMenu.addAction(self.LastSceneAction)
 
     def InitToolbar(self):
         toolbar = self.addToolBar('Toolbar')
@@ -156,11 +162,11 @@ class Pycomics(QMainWindow):
         toolbar.addAction(self.NextAction)
         toolbar.addAction(self.LastAction)
         toolbar.addSeparator()
-        toolbar.addAction(self.LastPath)
+        toolbar.addAction(self.LastSceneAction)
         toolbar.addSeparator()
         toolbar.addAction(self.ExitAction)
         
-    def InitStatusbar(self):
+    def InitStatusbar(self): 
         self.statusbar = self.statusBar()
         self.pathstatus = QLabel()
         self.filenamestatus = QLabel()
@@ -168,6 +174,10 @@ class Pycomics(QMainWindow):
         self.statusbar.addWidget(self.pathstatus)
         self.statusbar.addPermanentWidget(self.filenamestatus)
         self.statusbar.addPermanentWidget(self.indexstatus)
+
+    def InitLastScene(self):
+        if self.lastscene and self.path:
+            self.LoadFile(self.path)
 
     def ShowOpenFileDialog(self):
         path = QFileDialog.getOpenFileName(self, 'Open File', '', 'Support Files (*.png *.jpeg *.jpg *.bmp *.zip *.rar *.7z);;Images (*.png *.jpeg *.jpg *.bmp);;Zip (*.zip)')
@@ -182,15 +192,18 @@ class Pycomics(QMainWindow):
     def OpenFile(self):
         filepath = self.ShowOpenFileDialog()
         if filepath:
+            self.folderpath = ''
+            self.CloseArchive()
             self.LoadFile(filepath)
 
     def OpenFolder(self):
         folder = self.ShowOpenFolderDialog()
         if folder:
+            self.folderpath = folder
+            self.CloseArchive()
             self.LoadFile(folder)
 
     def LoadFile(self,path):
-        self.Lastpath = path
         if os.path.isdir(path):
             folder = path
             fname = ''
@@ -198,7 +211,12 @@ class Pycomics(QMainWindow):
             folder,fname = os.path.split(path)
         else:
             return
-        self.allfiles = self.GetAllFiles(folder)
+        if self.folder:
+            if not os.path.isdir(self.folder):
+                self.folder = folder
+            self.allfiles = self.GetAllFiles(self.folder)
+        else:
+            self.allfiles = self.GetAllFiles(folder)
         if len(self.allfiles) == 0:
             return
         if fname:
@@ -207,6 +225,7 @@ class Pycomics(QMainWindow):
             self.fileindex = 0
             path = self.allfiles[0]
             fname = os.path.basename(path)
+        self.path = path
         self.IsArchive,self.ext = self.IsCompressed(path)
         if self.IsArchive:
             if self.ext == '.zip':
@@ -224,7 +243,6 @@ class Pycomics(QMainWindow):
                 else: 
                     self.Pwd = None
                 self.AllFilesInArchive = self.GetAllFilesInArchive(AcrhiveFileList)
-                self.IndexInArchive = 0
                 self.ShowImage()
             elif self.ext == '.rar':
                 self.ArchiveFile = rarfile.RarFile(path, 'r')
@@ -241,13 +259,13 @@ class Pycomics(QMainWindow):
                 else: 
                     self.Pwd = None
                 self.AllFilesInArchive = self.GetAllFilesInArchive(AcrhiveFileList)
-                self.IndexInArchive = 0
                 self.ShowImage()
             elif self.ext == '.7z':
                 self.LoadFailed()
             else:
                 self.LoadFailed()
         else:
+            self.IndexInArchive = 0
             self.ShowImage()
 
     def ShowImage(self):
@@ -327,7 +345,7 @@ class Pycomics(QMainWindow):
                 self.ShowImage()
             else:
                 if self.fileindex>0:
-                    self.ArchiveFile.close()
+                    self.CloseArchive()
                     self.LoadFile(self.allfiles[self.fileindex -1])
         else:
             if self.fileindex>0:
@@ -340,7 +358,7 @@ class Pycomics(QMainWindow):
                 self.ShowImage()
             else:
                 if self.fileindex < len(self.allfiles)-1:
-                    self.ArchiveFile.close()
+                    self.CloseArchive()
                     self.LoadFile(self.allfiles[self.fileindex + 1])
         else:
             if self.fileindex < len(self.allfiles)-1:
@@ -392,6 +410,12 @@ class Pycomics(QMainWindow):
 
     def ShowPwdManager(self):
         self.PwdDialog.exec_()
+    def CloseArchive(self):
+        self.IndexInArchive = 0
+        try:
+            self.ArchiveFile.close()
+        except AttributeError:
+            pass
 
 
 class PwdManager(QDialog):
