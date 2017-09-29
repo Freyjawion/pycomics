@@ -196,6 +196,8 @@ class Pycomics(QMainWindow):
             fname = ''
         elif os.path.isfile(path):
             folder,fname = os.path.split(path)
+        else:
+            return
         self.allfiles = self.GetAllFiles(folder)
         if len(self.allfiles) == 0:
             return
