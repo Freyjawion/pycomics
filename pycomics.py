@@ -5,7 +5,6 @@ import configparser
 import os
 import sys
 import zipfile
-
 import rarfile
 from natsort import natsorted, ns
 from PyQt5.QtCore import QItemSelectionModel, Qt
