@@ -35,7 +35,6 @@ class Pycomics(QMainWindow):
         self.InitStatusbar()
         self.InitLastScene()
 
-
     def closeEvent(self,event):
         self.SaveConfig()
     
