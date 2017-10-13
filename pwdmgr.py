@@ -22,7 +22,6 @@ class PwdManager(QDialog):
         self.PwdBox = QLineEdit()
         self.PwdBox.textEdited.connect(self.PwdChanged)
 
-
     def showEvent(self,event):
         self.setWindowTitle('Password Manager')
         self.setFixedSize(400,300)
@@ -42,6 +41,7 @@ class PwdManager(QDialog):
         self.LoadPwdToList()
         if self.Model.rowCount() == 0:
             self.AddPwd()
+        self.IsChanged = False
 
     def closeEvent(self,event):
         self.RemoveEmpty()
@@ -49,6 +49,10 @@ class PwdManager(QDialog):
         for index in range(self.Model.rowCount()):
             pwdf.write(self.Model.data(self.Model.index(index,0))+'\n')
         pwdf.close()
+        if self.IsChanged:
+            self.done(1)
+        else:
+            self.done(0)
 
     def center(self):
         frameGm = self.frameGeometry()
@@ -83,8 +87,9 @@ class PwdManager(QDialog):
         self.PwdBox.setFocus()
 
     def PwdChanged(self):
-         self.Model.setData(self.PwdViewer.currentIndex(),self.PwdBox.text())
-         if self.PwdBox.text() == '':
+        self.IsChanged = True
+        self.Model.setData(self.PwdViewer.currentIndex(),self.PwdBox.text())
+        if self.PwdBox.text() == '':
             self.DelPwd()
 
     def DelPwd(self):

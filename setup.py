@@ -28,14 +28,13 @@ options = {
         'includes':includes,
         'excludes':excludes,
         'packages':packages,
-        'include_files':includefiles,
-        'compressed':True
+        'include_files':includefiles
     }
 }
 
 executables = [
     Executable(
-        script ='pycomics.py',
+        script ='main.py',
         initScript = None,
         base=base,
         targetName = "pycomics.exe",

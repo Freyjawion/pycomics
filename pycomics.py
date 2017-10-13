@@ -27,13 +27,13 @@ class Pycomics(QMainWindow):
         super().__init__()
         
         self.InitConfig()
+        self.InitDialog()
         self.InitUI()
         self.InitActions()
         self.InitMenus()
         self.InitToolbar()
         self.InitStatusbar()
         self.InitLastScene()
-        self.PwdDialog = pwdmgr.PwdManager()
 
 
     def closeEvent(self,event):
@@ -72,6 +72,9 @@ class Pycomics(QMainWindow):
 
         with open('pycomics.ini','w') as configfile:
             config.write(configfile)
+
+    def InitDialog(self):
+        self.PwdDialog = pwdmgr.PwdManager()
 
     def InitUI(self):
         self.ImageViewer = QLabel()
@@ -169,12 +172,12 @@ class Pycomics(QMainWindow):
         
     def InitStatusbar(self): 
         self.statusbar = self.statusBar()
-        self.pathstatus = QLabel()
-        self.filenamestatus = QLabel()
-        self.indexstatus = QLabel()
-        self.statusbar.addWidget(self.pathstatus)
-        self.statusbar.addPermanentWidget(self.filenamestatus)
-        self.statusbar.addPermanentWidget(self.indexstatus)
+        self.StatusPath = QLabel()
+        self.StatusFilename = QLabel()
+        self.StatusIndex = QLabel()
+        self.statusbar.addWidget(self.StatusPath)
+        self.statusbar.addPermanentWidget(self.StatusFilename)
+        self.statusbar.addPermanentWidget(self.StatusIndex)
 
     def InitLastScene(self):
         if self.lastscene and self.path:
@@ -211,6 +214,7 @@ class Pycomics(QMainWindow):
         elif os.path.isfile(path):
             folder,fname = os.path.split(path)
         else:
+            self.LoadFailed()
             return
         if self.folder:
             if not os.path.isdir(self.folder):
@@ -279,19 +283,24 @@ class Pycomics(QMainWindow):
             self.pixmap = QPixmap(fname)
 
         if self.pixmap.isNull():
-            self.ImageViewer.setText("Can not load %s." % fname)
+            self.LoadFailed()
         else:
             self.ImageViewer.setPixmap(self.pixmap)
             self.ResizeViewer()
 
+        self.UpdateStatus()
+
+    def UpdateStatus(self):
         if self.IsArchive:
-            self.pathstatus.setText(self.allfiles[self.fileindex])
-            self.filenamestatus.setText(fname)
-            self.indexstatus.setText(str(self.IndexInArchive+1) + '/' + str(len(self.AllFilesInArchive)))
+            fname = self.AllFilesInArchive[self.IndexInArchive]
+            self.StatusPath.setText(self.allfiles[self.fileindex])
+            self.StatusFilename.setText(fname)
+            self.StatusIndex.setText(str(self.IndexInArchive+1) + '/' + str(len(self.AllFilesInArchive)))
         else:
-            self.pathstatus.setText(fname)
-            self.filenamestatus.setText(os.path.split(fname)[1])
-            self.indexstatus.setText(str(self.fileindex+1) + '/' + str(len(self.allfiles)))
+            fname = self.allfiles[self.fileindex]
+            self.StatusPath.setText(fname)
+            self.StatusFilename.setText(os.path.split(fname)[1])
+            self.StatusIndex.setText(str(self.fileindex+1) + '/' + str(len(self.allfiles)))
 
     def ResizeViewer(self):
         self.ImageViewer.resize(self.pixmap.width(),self.pixmap.height())
@@ -347,10 +356,12 @@ class Pycomics(QMainWindow):
             else:
                 if self.fileindex>0:
                     self.CloseArchive()
-                    self.LoadFile(self.allfiles[self.fileindex -1])
+                    self.fileindex -=1
+                    self.LoadFile(self.allfiles[self.fileindex])
         else:
             if self.fileindex>0:
-                self.LoadFile(self.allfiles[self.fileindex -1])
+                self.fileindex -=1
+                self.LoadFile(self.allfiles[self.fileindex])
 
     def NextPage(self):
         if self.IsArchive:
@@ -360,24 +371,28 @@ class Pycomics(QMainWindow):
             else:
                 if self.fileindex < len(self.allfiles)-1:
                     self.CloseArchive()
-                    self.LoadFile(self.allfiles[self.fileindex + 1])
+                    self.fileindex +=1
+                    self.LoadFile(self.allfiles[self.fileindex])
         else:
             if self.fileindex < len(self.allfiles)-1:
-                self.LoadFile(self.allfiles[self.fileindex + 1])
+                self.fileindex +=1
+                self.LoadFile(self.allfiles[self.fileindex])
 
     def FirstPage(self):
         if self.IsArchive:
             self.IndexInArchive = 0
             self.ShowImage()
         else:
-            self.LoadFile(self.allfiles[0])
+            self.fileindex = 0
+            self.LoadFile(self.allfiles[self.fileindex])
 
     def LastPage(self):
         if self.IsArchive:
             self.IndexInArchive = len(self.AllFilesInArchive)-1
             self.ShowImage()
         else:
-            self.LoadFile(self.allfiles[len(self.allfiles)-1])
+            self.fileindex = len(self.allfiles)-1
+            self.LoadFile(self.allfiles[self.fileindex])
 
     def LoadPwd(self):
         if not os.path.exists(r'password.pwd'):
@@ -391,26 +406,36 @@ class Pycomics(QMainWindow):
 
     def DecryptArchive(self,archivefile):
         self.LoadPwd()
-        for password in self.PwdList:
-            try:
-               data = self.ArchiveFile.read(self.ArchiveInfo[0].filename,password)
-               return True,password
-            except:
-                pass
-        return False,None
+        self.IsPwdChanged = True
+        IsPwdFound = False
+        while self.IsPwdChanged and not IsPwdFound:
+            for password in self.PwdList:
+                try:
+                    data = self.ArchiveFile.read(self.ArchiveInfo[0].filename,password)
+                    IsPwdFound = True
+                    return IsPwdFound,password
+                except:
+                    pass
+            self.ShowPwdManager()
+        return IsPwdFound,None
 
     def LoadFailed(self):
-        if self.IsArchive:
+        if self.IsArchive and not self.Pass:
             self.IsArchive = False
-        fname = self.allfiles[self.fileindex]
-        self.ImageViewer.setText("Can not load %s." % fname)
-        self.filenamestatus.setText(os.path.split(fname)[1])
-        self.indexstatus.setText(str(self.fileindex+1) + '/' + str(len(self.allfiles)))
+
+        self.UpdateStatus()
+
+        self.ImageViewer.setText("Can not load %s" % self.StatusFilename.text())
         self.ImageViewer.resize(300,50)
         self.ImageViewer.setAlignment(Qt.AlignCenter)
 
     def ShowPwdManager(self):
-        self.PwdDialog.exec_()
+        if self.PwdDialog.exec_():
+            self.IsPwdChanged = True
+            self.LoadPwd()
+        else:
+            self.IsPwdChanged = False
+
     def CloseArchive(self):
         self.IndexInArchive = 0
         try:
