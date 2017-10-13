@@ -28,16 +28,21 @@ class Pycomics(QMainWindow):
         
         self.InitConfig()
         self.InitDialog()
-        self.InitUI()
         self.InitActions()
         self.InitMenus()
         self.InitToolbar()
         self.InitStatusbar()
+        self.InitUI()
+
+    def showEvent(self,event):
         self.InitLastScene()
 
     def closeEvent(self,event):
         self.SaveConfig()
-    
+
+    def resizeEvent(self,event):
+        self.ResizeViewer()
+
     def InitConfig(self):
         config = configparser.ConfigParser()
         config.read('pycomics.ini')
@@ -156,27 +161,27 @@ class Pycomics(QMainWindow):
         fileMenu.addAction(self.LastSceneAction)
 
     def InitToolbar(self):
-        toolbar = self.addToolBar('Toolbar')
-        toolbar.addAction(self.OpenAction)
-        toolbar.addAction(self.OpenFAction)
-        toolbar.addSeparator()
-        toolbar.addAction(self.FirstAction)
-        toolbar.addAction(self.PrevAction)
-        toolbar.addAction(self.NextAction)
-        toolbar.addAction(self.LastAction)
-        toolbar.addSeparator()
-        toolbar.addAction(self.LastSceneAction)
-        toolbar.addSeparator()
-        toolbar.addAction(self.ExitAction)
+        self.toolBar = self.addToolBar('Toolbar')
+        self.toolBar.addAction(self.OpenAction)
+        self.toolBar.addAction(self.OpenFAction)
+        self.toolBar.addSeparator()
+        self.toolBar.addAction(self.FirstAction)
+        self.toolBar.addAction(self.PrevAction)
+        self.toolBar.addAction(self.NextAction)
+        self.toolBar.addAction(self.LastAction)
+        self.toolBar.addSeparator()
+        self.toolBar.addAction(self.LastSceneAction)
+        self.toolBar.addSeparator()
+        self.toolBar.addAction(self.ExitAction)
         
     def InitStatusbar(self): 
-        self.statusbar = self.statusBar()
+        statusbar = self.statusBar()
         self.StatusPath = QLabel()
         self.StatusFilename = QLabel()
         self.StatusIndex = QLabel()
-        self.statusbar.addWidget(self.StatusPath)
-        self.statusbar.addPermanentWidget(self.StatusFilename)
-        self.statusbar.addPermanentWidget(self.StatusIndex)
+        statusbar.addWidget(self.StatusPath)
+        statusbar.addPermanentWidget(self.StatusFilename)
+        statusbar.addPermanentWidget(self.StatusIndex)
 
     def InitLastScene(self):
         if self.lastscene and self.path:
@@ -302,9 +307,19 @@ class Pycomics(QMainWindow):
             self.StatusIndex.setText(str(self.fileindex+1) + '/' + str(len(self.allfiles)))
 
     def ResizeViewer(self):
-        self.ImageViewer.resize(self.pixmap.width(),self.pixmap.height())
-        self.ImageViewer.setAlignment(Qt.AlignCenter)
-    
+        try:
+            viewh = self.height() - self.menuBar().height() - self.toolBar.height() - self.statusBar().height() -2
+            vieww = self.width() -2
+            hscale=viewh/self.pixmap.height()
+            wscale=vieww/self.pixmap.width()
+            scale = min(hscale,wscale)
+            self.ImageViewer.resize(self.pixmap.width()*scale,self.pixmap.height()*scale)
+            self.ImageViewer.setScaledContents(True)
+            self.pixmap.scaled(self.ImageViewer.size(),Qt.KeepAspectRatio, transformMode = Qt.SmoothTransformation)
+            self.ImageViewer.setAlignment(Qt.AlignCenter)
+        except:
+            pass
+
     def SupportFile(self,fname):
         supportext =['.jpg','.png','.jpeg','.bmp','.zip','.rar','.7z']
         ext = os.path.splitext(fname)[1]
