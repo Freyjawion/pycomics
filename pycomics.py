@@ -7,13 +7,13 @@ import sys
 import zipfile
 
 import rarfile
-from natsort import natsorted, ns
 from PyQt5.QtCore import QItemSelectionModel, Qt, QTimer
 from PyQt5.QtGui import QIcon, QImage, QPixmap
 from PyQt5.QtWidgets import (QAction, QActionGroup, QApplication, QFileDialog,
                              QLabel, QMainWindow, QMessageBox, QScrollArea,
                              QTextEdit)
 
+import listmgr
 import pwdmgr
 
 __Title__ = 'Pycomics'
@@ -35,13 +35,7 @@ class Pycomics(QMainWindow):
         self.InitUI()
 
     def showEvent(self,event):
-        if self.initwindowstate == 1:
-            self.setWindowState(Qt.WindowMinimized)
-        elif self.initwindowstate == 2:
-            self.setWindowState(Qt.WindowMaximized)
-        elif self.initwindowstate == 3:
-            self.setWindowState(Qt.WindowMaximized)
-            self.setWindowState(Qt.WindowMinimized)
+        pass
 
     def closeEvent(self,event):
         self.SaveConfig()
@@ -55,11 +49,13 @@ class Pycomics(QMainWindow):
         
         self.path = config.get('DEFAULT','path',fallback='')
         self.folder = config.get('DEFAULT','folder',fallback='')
-        self.A_LastScene.setChecked(config.getboolean('DEFAULT','lastscene',fallback=False))
-        self.A_OriSize.setChecked(config.getboolean('DEFAULT','orisize',fallback=False))
-        self.A_FitScreen.setChecked(config.getboolean('DEFAULT','fitscreen',fallback=False))
-        self.A_FitHeight.setChecked(config.getboolean('DEFAULT','fitheight',fallback=False))
-        self.A_FitWidth.setChecked(config.getboolean('DEFAULT','fitwidth',fallback=False))
+        self.SortOrder = config.getint('DEFAULT','sortorder',fallback=0)
+        self.SortAlg = config.getint('DEFAULT','sortalg',fallback=0)
+        self.ALastScene.setChecked(config.getboolean('DEFAULT','lastscene',fallback=False))
+        self.AOriSize.setChecked(config.getboolean('DEFAULT','orisize',fallback=False))
+        self.AFitScreen.setChecked(config.getboolean('DEFAULT','fitscreen',fallback=False))
+        self.AFitHeight.setChecked(config.getboolean('DEFAULT','fitheight',fallback=False))
+        self.AFitWidth.setChecked(config.getboolean('DEFAULT','fitwidth',fallback=False))
         self.IsArchive = config.getboolean('DEFAULT','isarchive',fallback=False)
         self.IndexInArchive = config.getint('DEFAULT','archiveindex',fallback=0)
         self.initx = config.getint('DEFAULT','x',fallback=50) 
@@ -74,13 +70,15 @@ class Pycomics(QMainWindow):
         window_state = str(int(self.windowState()))
         config.set('DEFAULT','path',self.path)
         config.set('DEFAULT','folder',self.folder)
-        config.set('DEFAULT','lastscene', str(self.A_LastScene.isChecked()))
+        config.set('DEFAULT','sortorder',str(self.SortOrder))
+        config.set('DEFAULT','sortalg',str(self.SortAlg))
+        config.set('DEFAULT','lastscene', str(self.ALastScene.isChecked()))
         config.set('DEFAULT','isarchive', str(self.IsArchive))
         config.set('DEFAULT','archiveindex', str(self.IndexInArchive))
-        config.set('DEFAULT','orisize', str(self.A_OriSize.isChecked()))
-        config.set('DEFAULT','fitscreen', str(self.A_FitScreen.isChecked()))
-        config.set('DEFAULT','fitheight', str(self.A_FitHeight.isChecked()))
-        config.set('DEFAULT','fitwidth', str(self.A_FitWidth.isChecked()))
+        config.set('DEFAULT','orisize', str(self.AOriSize.isChecked()))
+        config.set('DEFAULT','fitscreen', str(self.AFitScreen.isChecked()))
+        config.set('DEFAULT','fitheight', str(self.AFitHeight.isChecked()))
+        config.set('DEFAULT','fitwidth', str(self.AFitWidth.isChecked()))
         config.set('DEFAULT','windowstate',window_state)
         if window_state == '0':
             config.set('DEFAULT','x',str(self.geometry().x()))
@@ -93,6 +91,7 @@ class Pycomics(QMainWindow):
 
     def InitDialog(self):
         self.PwdDialog = pwdmgr.PwdManager()
+        self.ListDialog = listmgr.ListManager()
 
     def InitUI(self):
         self.ImageViewer = QLabel()
@@ -102,112 +101,125 @@ class Pycomics(QMainWindow):
         self.scrollArea.setAlignment(Qt.AlignCenter)
         self.setWindowTitle(__Title__ + ' ' + __Version__)
         self.setGeometry(self.initx,self.inity ,self.initwidth,self.initheight)
+        self.AllFiles = []
         self.show()
+        if self.initwindowstate == 1:
+            self.setWindowState(Qt.WindowMinimized)
+        elif self.initwindowstate == 2:
+            self.setWindowState(Qt.WindowMaximized)
+        elif self.initwindowstate == 3:
+            self.setWindowState(Qt.WindowMaximized)
+            self.setWindowState(Qt.WindowMinimized)
 
     def InitActions(self):
-        self.A_Exit = QAction(QIcon('icon' + os.sep + 'logout.png'), 'Exit', self)
-        self.A_Exit.setShortcut('ESC')
-        self.A_Exit.setStatusTip('Exit application')
-        self.A_Exit.triggered.connect(self.close)
+        self.AExit = QAction(QIcon('icon' + os.sep + 'logout.png'), 'Exit', self)
+        self.AExit.setShortcut('ESC')
+        self.AExit.setStatusTip('Exit application')
+        self.AExit.triggered.connect(self.close)
 
-        self.A_Open = QAction(QIcon('icon' + os.sep + 'file.png'), 'Open Files', self)
-        self.A_Open .setShortcut('Ctrl+O')
-        self.A_Open .setStatusTip('Open Files')
-        self.A_Open .triggered.connect(self.OpenFile)
+        self.AOpen = QAction(QIcon('icon' + os.sep + 'file.png'), 'Open Files', self)
+        self.AOpen .setShortcut('Ctrl+O')
+        self.AOpen .setStatusTip('Open Files')
+        self.AOpen .triggered.connect(self.OpenFile)
 
-        self.A_OpenFolder = QAction(QIcon('icon' + os.sep + 'file.png'), 'Open Folder', self)
-        self.A_OpenFolder .setShortcut('Ctrl+O')
-        self.A_OpenFolder .setStatusTip('Open Folder')
-        self.A_OpenFolder .triggered.connect(self.OpenFolder)
+        self.AOpenFolder = QAction(QIcon('icon' + os.sep + 'file.png'), 'Open Folder', self)
+        self.AOpenFolder .setShortcut('Ctrl+O')
+        self.AOpenFolder .setStatusTip('Open Folder')
+        self.AOpenFolder .triggered.connect(self.OpenFolder)
 
-        self.A_Prev = QAction(QIcon('icon' + os.sep + 'file.png'), 'PreviousPage', self)
-        self.A_Prev .setShortcut('Left')
-        self.A_Prev .setStatusTip('PreviousPage')
-        self.A_Prev .triggered.connect(self.PrevPage)
+        self.APrev = QAction(QIcon('icon' + os.sep + 'file.png'), 'PreviousPage', self)
+        self.APrev .setShortcut('Left')
+        self.APrev .setStatusTip('PreviousPage')
+        self.APrev .triggered.connect(self.PrevPage)
 
-        self.A_Next = QAction(QIcon('icon' + os.sep + 'file.png'), 'NextPage', self)
-        self.A_Next .setShortcut('Right')
-        self.A_Next .setStatusTip('NextPage')
-        self.A_Next .triggered.connect(self.NextPage)
+        self.ANext = QAction(QIcon('icon' + os.sep + 'file.png'), 'NextPage', self)
+        self.ANext .setShortcut('Right')
+        self.ANext .setStatusTip('NextPage')
+        self.ANext .triggered.connect(self.NextPage)
 
-        self.A_First = QAction(QIcon('icon' + os.sep + 'file.png'), 'FirstPage', self)
-        self.A_First .setShortcut('home')
-        self.A_First .setStatusTip('FirstPage')
-        self.A_First .triggered.connect(self.FirstPage)
+        self.AFirst = QAction(QIcon('icon' + os.sep + 'file.png'), 'FirstPage', self)
+        self.AFirst .setShortcut('home')
+        self.AFirst .setStatusTip('FirstPage')
+        self.AFirst .triggered.connect(self.FirstPage)
 
-        self.A_Last = QAction(QIcon('icon' + os.sep + 'file.png'), 'LastPage', self)
-        self.A_Last .setShortcut('end')
-        self.A_Last .setStatusTip('LastPage')
-        self.A_Last .triggered.connect(self.LastPage)
+        self.ALast = QAction(QIcon('icon' + os.sep + 'file.png'), 'LastPage', self)
+        self.ALast .setShortcut('end')
+        self.ALast .setStatusTip('LastPage')
+        self.ALast .triggered.connect(self.LastPage)
 
-        self.A_PwdManager = QAction(QIcon('icon' + os.sep + 'file.png'), 'Password Manager', self)
-        self.A_PwdManager .setStatusTip('Password Manager')
-        self.A_PwdManager .triggered.connect(self.ShowPwdManager)
+        self.ALastScene = QAction(QIcon('icon' + os.sep + 'file.png'),'Last Scene',self,checkable=True)
+        self.ALastScene .setCheckable = True
+        self.ALastScene .setStatusTip('LastScene')
 
-        self.A_LastScene = QAction(QIcon('icon' + os.sep + 'file.png'),'Last Scene',self,checkable=True)
-        self.A_LastScene .setCheckable = True
-        self.A_LastScene .setStatusTip('LastScene')
+        self.AOriSize = QAction(QIcon('icon' + os.sep + 'file.png'),'Original Size',self,checkable=True)
+        self.AOriSize .setCheckable = True
+        self.AOriSize .setStatusTip('Original Size')
 
-        self.A_OriSize = QAction(QIcon('icon' + os.sep + 'file.png'),'Original Size',self,checkable=True)
-        self.A_OriSize .setCheckable = True
-        self.A_OriSize .setStatusTip('Original Size')
+        self.AFitScreen = QAction(QIcon('icon' + os.sep + 'file.png'),'Fit Screen',self,checkable=True)
+        self.AFitScreen .setCheckable = True
+        self.AFitScreen .setStatusTip('FitScreen')
 
-        self.A_FitScreen = QAction(QIcon('icon' + os.sep + 'file.png'),'Fit Screen',self,checkable=True)
-        self.A_FitScreen .setCheckable = True
-        self.A_FitScreen .setStatusTip('FitScreen')
+        self.AFitHeight = QAction(QIcon('icon' + os.sep + 'file.png'),'Fit Height',self,checkable=True)
+        self.AFitHeight .setCheckable = True
+        self.AFitHeight .setStatusTip('FitHeight')
 
-        self.A_FitHeight = QAction(QIcon('icon' + os.sep + 'file.png'),'Fit Height',self,checkable=True)
-        self.A_FitHeight .setCheckable = True
-        self.A_FitHeight .setStatusTip('FitHeight')
+        self.AFitWidth = QAction(QIcon('icon' + os.sep + 'file.png'),'Fit Width',self,checkable=True)
+        self.AFitWidth .setCheckable = True
+        self.AFitWidth .setStatusTip('FitWidth')
 
-        self.A_FitWidth = QAction(QIcon('icon' + os.sep + 'file.png'),'Fit Width',self,checkable=True)
-        self.A_FitWidth .setCheckable = True
-        self.A_FitWidth .setStatusTip('FitWidth')
+        self.AFitGroup = QActionGroup(self)
+        self.AFitGroup.addAction(self.AOriSize)
+        self.AFitGroup.addAction(self.AFitScreen)
+        self.AFitGroup.addAction(self.AFitHeight)
+        self.AFitGroup.addAction(self.AFitWidth)
+        self.AOriSize.setChecked(True)
+        self.AFitGroup.triggered.connect(self.ResizeViewer)
 
-        self.A_FitGroup = QActionGroup(self)
-        self.A_FitGroup.addAction(self.A_OriSize)
-        self.A_FitGroup.addAction(self.A_FitScreen)
-        self.A_FitGroup.addAction(self.A_FitHeight)
-        self.A_FitGroup.addAction(self.A_FitWidth)
-        self.A_OriSize.setChecked(True)
-        self.A_FitGroup.triggered.connect(self.ResizeViewer)
+        self.APwdManager = QAction(QIcon('icon' + os.sep + 'file.png'), 'Password Manager', self)
+        self.APwdManager .setStatusTip('Password Manager')
+        self.APwdManager .triggered.connect(self.ShowPwdManager)
+
+        self.AListManager = QAction(QIcon('icon' + os.sep + 'file.png'), 'List Manager', self)
+        self.AListManager .setStatusTip('List Manager')
+        self.AListManager .triggered.connect(self.ShowListManager)
 
     def InitMenu(self):
         menubar = self.menuBar()
         fileMenu = menubar.addMenu('&File')
-        fileMenu.addAction(self.A_Open)
-        fileMenu.addAction(self.A_OpenFolder)
-        fileMenu.addAction(self.A_Exit)
+        fileMenu.addAction(self.AOpen)
+        fileMenu.addAction(self.AOpenFolder)
+        fileMenu.addAction(self.AExit)
 
         fileMenu = menubar.addMenu('&View')
-        fileMenu.addAction(self.A_First)
-        fileMenu.addAction(self.A_Prev)
-        fileMenu.addAction(self.A_Next)
-        fileMenu.addAction(self.A_Last)
+        fileMenu.addAction(self.AFirst)
+        fileMenu.addAction(self.APrev)
+        fileMenu.addAction(self.ANext)
+        fileMenu.addAction(self.ALast)
 
         fileMenu = menubar.addMenu('&Settings')
-        fileMenu.addAction(self.A_PwdManager)
-        fileMenu.addAction(self.A_LastScene)
+        fileMenu.addAction(self.APwdManager)
+        fileMenu.addAction(self.ALastScene)
 
     def InitToolbar(self):
         self.toolBar = self.addToolBar('Toolbar')
         self.toolBar.setMovable(False)
-        self.toolBar.addAction(self.A_Open)
-        self.toolBar.addAction(self.A_OpenFolder)
+        self.toolBar.addAction(self.AOpen)
+        self.toolBar.addAction(self.AOpenFolder)
+        self.toolBar.addAction(self.AListManager)
         self.toolBar.addSeparator()
-        self.toolBar.addAction(self.A_First)
-        self.toolBar.addAction(self.A_Prev)
-        self.toolBar.addAction(self.A_Next)
-        self.toolBar.addAction(self.A_Last)
+        self.toolBar.addAction(self.AFirst)
+        self.toolBar.addAction(self.APrev)
+        self.toolBar.addAction(self.ANext)
+        self.toolBar.addAction(self.ALast)
         self.toolBar.addSeparator()
-        self.toolBar.addAction(self.A_OriSize)
-        self.toolBar.addAction(self.A_FitScreen)
-        self.toolBar.addAction(self.A_FitHeight)
-        self.toolBar.addAction(self.A_FitWidth)
+        self.toolBar.addAction(self.AOriSize)
+        self.toolBar.addAction(self.AFitScreen)
+        self.toolBar.addAction(self.AFitHeight)
+        self.toolBar.addAction(self.AFitWidth)
         self.toolBar.addSeparator()
-        self.toolBar.addAction(self.A_LastScene)
+        self.toolBar.addAction(self.ALastScene)
         self.toolBar.addSeparator()
-        self.toolBar.addAction(self.A_Exit)
+        self.toolBar.addAction(self.AExit)
 
     def InitStatusbar(self): 
         statusbar = self.statusBar()
@@ -221,7 +233,7 @@ class Pycomics(QMainWindow):
         statusbar.addPermanentWidget(self.StatusSize)
 
     def InitLastScene(self):
-        if self.A_LastScene.isChecked() and self.path:
+        if self.ALastScene.isChecked() and self.path:
             self.LoadFile(self.path)
 
     def ShowOpenFileDialog(self):
@@ -260,16 +272,16 @@ class Pycomics(QMainWindow):
         if self.folder:
             if not os.path.isdir(self.folder):
                 self.folder = folder
-            self.allfiles = self.GetAllFiles(self.folder)
+            self.AllFiles = self.GetAllFiles(self.folder)
         else:
-            self.allfiles = self.GetAllFiles(folder)
-        if len(self.allfiles) == 0:
+            self.AllFiles = self.GetAllFiles(folder)
+        if len(self.AllFiles) == 0:
             return
         if fname:
-            self.fileindex = self.allfiles.index(path)
+            self.fileindex = self.AllFiles.index(path)
         else:
             self.fileindex = 0
-            path = self.allfiles[0]
+            path = self.AllFiles[0]
             fname = os.path.basename(path)
         self.path = path
         self.IsArchive,self.ext = self.IsCompressed(path)
@@ -322,7 +334,7 @@ class Pycomics(QMainWindow):
             data =self.ArchiveFile.read(fname,self.Pwd)
             self.pixmap = QPixmap.fromImage(QImage.fromData(data))
         else:
-            fname = self.allfiles[self.fileindex]
+            fname = self.AllFiles[self.fileindex]
             self.pixmap = QPixmap(fname)
 
         if self.pixmap.isNull():
@@ -336,14 +348,14 @@ class Pycomics(QMainWindow):
     def UpdateStatus(self):
         if self.IsArchive:
             fname = self.AllFilesInArchive[self.IndexInArchive]
-            self.StatusPath.setText(self.allfiles[self.fileindex])
+            self.StatusPath.setText(self.AllFiles[self.fileindex])
             self.StatusFilename.setText(fname)
             self.StatusIndex.setText(str(self.IndexInArchive+1) + '/' + str(len(self.AllFilesInArchive)))
         else:
-            fname = self.allfiles[self.fileindex]
+            fname = self.AllFiles[self.fileindex]
             self.StatusPath.setText(fname)
             self.StatusFilename.setText(os.path.split(fname)[1])
-            self.StatusIndex.setText(str(self.fileindex+1) + '/' + str(len(self.allfiles)))
+            self.StatusIndex.setText(str(self.fileindex+1) + '/' + str(len(self.AllFiles)))
 
         try:
             h = str(self.pixmap.height())
@@ -354,18 +366,18 @@ class Pycomics(QMainWindow):
 
     def ResizeViewer(self):
         try:
-            if self.A_OriSize.isChecked():
+            if self.AOriSize.isChecked():
                 scale = 1
             else:
                 viewh = self.height() - self.menuBar().height() - self.toolBar.height() - self.statusBar().height() -2
                 vieww = self.width() -2
                 hscale=viewh/self.pixmap.height()
                 wscale=vieww/self.pixmap.width()
-                if self.A_FitScreen.isChecked():
+                if self.AFitScreen.isChecked():
                     scale = min(hscale,wscale)
-                elif self.A_FitWidth.isChecked():
+                elif self.AFitWidth.isChecked():
                     scale = wscale
-                elif self.A_FitHeight.isChecked():
+                elif self.AFitHeight.isChecked():
                     scale = hscale
                 else:
                     scale = 1
@@ -408,7 +420,7 @@ class Pycomics(QMainWindow):
                 filepath = os.path.join(root, filename)
                 if self.SupportFile(filepath):
                     file_paths.append(filepath)
-        file_paths = natsorted(file_paths,alg=ns.PATH)
+        file_paths = self.ListDialog.Sort(file_paths,self.SortOrder,self.SortAlg)
         return file_paths
 
     def GetAllFilesInArchive(self,namelist):
@@ -416,8 +428,8 @@ class Pycomics(QMainWindow):
         for files in namelist:
                 if self.SupportFileInArchive(files):
                     support_file.append(files)
-        file_paths = natsorted(support_file,alg=ns.PATH)
-        return support_file
+        file_paths = self.ListDialog.Sort(support_file,self.SortOrder,self.SortAlg)
+        return file_paths
 
     def PrevPage(self):
         if self.IsArchive:
@@ -428,11 +440,11 @@ class Pycomics(QMainWindow):
                 if self.fileindex>0:
                     self.CloseArchive()
                     self.fileindex -=1
-                    self.LoadFile(self.allfiles[self.fileindex])
+                    self.LoadFile(self.AllFiles[self.fileindex])
         else:
             if self.fileindex>0:
                 self.fileindex -=1
-                self.LoadFile(self.allfiles[self.fileindex])
+                self.LoadFile(self.AllFiles[self.fileindex])
 
     def NextPage(self):
         if self.IsArchive:
@@ -440,14 +452,14 @@ class Pycomics(QMainWindow):
                 self.IndexInArchive +=1
                 self.ShowImage()
             else:
-                if self.fileindex < len(self.allfiles)-1:
+                if self.fileindex < len(self.AllFiles)-1:
                     self.CloseArchive()
                     self.fileindex +=1
-                    self.LoadFile(self.allfiles[self.fileindex])
+                    self.LoadFile(self.AllFiles[self.fileindex])
         else:
-            if self.fileindex < len(self.allfiles)-1:
+            if self.fileindex < len(self.AllFiles)-1:
                 self.fileindex +=1
-                self.LoadFile(self.allfiles[self.fileindex])
+                self.LoadFile(self.AllFiles[self.fileindex])
 
     def FirstPage(self):
         if self.IsArchive:
@@ -455,15 +467,15 @@ class Pycomics(QMainWindow):
             self.ShowImage()
         else:
             self.fileindex = 0
-            self.LoadFile(self.allfiles[self.fileindex])
+            self.LoadFile(self.AllFiles[self.fileindex])
 
     def LastPage(self):
         if self.IsArchive:
             self.IndexInArchive = len(self.AllFilesInArchive)-1
             self.ShowImage()
         else:
-            self.fileindex = len(self.allfiles)-1
-            self.LoadFile(self.allfiles[self.fileindex])
+            self.fileindex = len(self.AllFiles)-1
+            self.LoadFile(self.AllFiles[self.fileindex])
 
     def LoadPwd(self):
         if not os.path.exists(r'password.pwd'):
@@ -506,6 +518,27 @@ class Pycomics(QMainWindow):
             self.LoadPwd()
         else:
             self.IsPwdChanged = False
+
+    def ShowListManager(self):
+        if not self.AllFiles:
+            return
+        if self.IsArchive:
+            self.ListDialog.list = self.AllFilesInArchive
+            self.ListDialog.path = self.AllFilesInArchive[self.IndexInArchive]
+        else:
+            self.ListDialog.list = self.AllFiles
+            self.ListDialog.path = self.path
+        self.ListDialog.SortOrder[self.SortOrder].click()
+        self.ListDialog.SortAlg[self.SortAlg].click()
+        if self.ListDialog.exec_():
+            self.SortOrder = self.ListDialog.OrderGroup.checkedId()
+            self.SortAlg = self.ListDialog.AlgGroup.checkedId()
+            if self.IsArchive:
+                self.ListDialog.Sort(self.AllFilesInArchive,self.SortOrder,self.SortAlg)
+                self.IndexInArchive = self.ListDialog.index
+                self.ShowImage()
+            else:
+                self.LoadFile(self.ListDialog.path)
 
     def CloseArchive(self):
         self.IndexInArchive = 0

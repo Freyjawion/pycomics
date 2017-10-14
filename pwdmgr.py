@@ -13,6 +13,8 @@ class PwdManager(QDialog):
     def __init__(self):
         super().__init__()
         self.setWindowFlags(Qt.WindowCloseButtonHint | Qt.WindowTitleHint)
+        self.setWindowTitle('Password Manager')
+        self.setFixedSize(400,300)
         self.PwdViewer = QListView()
         self.PwdViewer.clicked.connect(self.ClickPwd)
         self.AddButton = QPushButton('Add')
@@ -21,10 +23,6 @@ class PwdManager(QDialog):
         self.DelButton.clicked.connect(self.DelPwd)
         self.PwdBox = QLineEdit()
         self.PwdBox.textEdited.connect(self.PwdChanged)
-
-    def showEvent(self,event):
-        self.setWindowTitle('Password Manager')
-        self.setFixedSize(400,300)
 
         vbox = QVBoxLayout()
         vbox.addWidget(self.AddButton)
@@ -37,6 +35,8 @@ class PwdManager(QDialog):
         MainBox.addWidget(self.PwdBox)
         MainBox.addLayout(hbox)
         self.setLayout(MainBox)
+
+    def showEvent(self,event):
         self.center()
         self.LoadPwdToList()
         if self.Model.rowCount() == 0:
