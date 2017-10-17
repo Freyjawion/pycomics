@@ -92,6 +92,8 @@ class Pycomics(QMainWindow):
     def InitDialog(self):
         self.PwdDialog = pwdmgr.PwdManager()
         self.ListDialog = listmgr.ListManager()
+        self.ListDialog.SortOrder[self.SortOrder].click()
+        self.ListDialog.SortAlg[self.SortAlg].click()
 
     def InitUI(self):
         self.ImageViewer = QLabel()
@@ -520,16 +522,12 @@ class Pycomics(QMainWindow):
             self.IsPwdChanged = False
 
     def ShowListManager(self):
-        if not self.AllFiles:
-            return
         if self.IsArchive:
             self.ListDialog.list = self.AllFilesInArchive
             self.ListDialog.path = self.AllFilesInArchive[self.IndexInArchive]
         else:
             self.ListDialog.list = self.AllFiles
             self.ListDialog.path = self.path
-        self.ListDialog.SortOrder[self.SortOrder].click()
-        self.ListDialog.SortAlg[self.SortAlg].click()
         if self.ListDialog.exec_():
             self.SortOrder = self.ListDialog.OrderGroup.checkedId()
             self.SortAlg = self.ListDialog.AlgGroup.checkedId()
@@ -538,7 +536,8 @@ class Pycomics(QMainWindow):
                 self.IndexInArchive = self.ListDialog.index
                 self.ShowImage()
             else:
-                self.LoadFile(self.ListDialog.path)
+                if self.AllFiles:
+                    self.LoadFile(self.ListDialog.path)
 
     def CloseArchive(self):
         self.IndexInArchive = 0

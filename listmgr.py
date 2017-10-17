@@ -22,7 +22,7 @@ class ListManager(QDialog):
         self.OkButton = QPushButton('OK')
         self.OkButton.clicked.connect(self.Ok)
         self.CancelButton = QPushButton('Cancel')
-        self.CancelButton.clicked.connect(self.Cancle)
+        self.CancelButton.clicked.connect(self.Cancel)
         sortorderlable = QLabel('Sort Order')
         self.SortOrder = [QRadioButton("Asc"), QRadioButton("Desc")]
         self.OrderGroup = QButtonGroup()
@@ -59,14 +59,15 @@ class ListManager(QDialog):
         mainbox.addLayout(hbox1)
         mainbox.addLayout(hbox2)
         self.setLayout(mainbox)
+        self.list = []
+        self.path = ''
 
     def showEvent(self,event):
         self.center()
         self.LoadListToView()
 
-
     def closeEvent(self,event):
-        self.Cancle()
+        self.Cancel()
 
     def center(self):
         frameGm = self.frameGeometry()
@@ -76,38 +77,43 @@ class ListManager(QDialog):
         self.move(frameGm.topLeft())
 
     def LoadListToView(self):
-        self.index = self.list.index(self.path)
-        self.Model = QStandardItemModel(self.ListViewer)
-        for file in self.list:
-            item = QStandardItem(file)
-            item.setEditable(False)
-            self.Model.appendRow(item)
-        self.ListViewer.setModel(self.Model)
-        self.ListViewer.setCurrentIndex(self.Model.index(self.index,0))
+        if self.list:
+            self.index = self.list.index(self.path)
+            self.Model = QStandardItemModel(self.ListViewer)
+            for file in self.list:
+                item = QStandardItem(file)
+                item.setEditable(False)
+                self.Model.appendRow(item)
+            self.ListViewer.setModel(self.Model)
+            self.ListViewer.setCurrentIndex(self.Model.index(self.index,0))
 
     def ClickList(self,index):
         self.path = self.Model.data(index)
         self.index = self.list.index(self.path)
 
     def ClickRadioButton(self):
-        self.list = self.Sort(self.list,self.OrderGroup.checkedId(),self.AlgGroup.checkedId())
-        self.LoadListToView()
+        if self.list:
+            self.list = self.Sort(self.list,self.OrderGroup.checkedId(),self.AlgGroup.checkedId())
+            self.LoadListToView()
 
     def Ok(self):
         self.accept()
 
-    def Cancle(self):
+    def Cancel(self):
         self.reject()
 
     def Sort(self,list,sortid,algid):
-        if sortid == 0:
-            isreverse = False
-        else:
-            isreverse = True
+        if list:
+            if sortid == 0:
+                isreverse = False
+            else:
+                isreverse = True
 
-        if algid == 0:
-            sortalg = ns.PATH
-        else:
-            sortalg = 0
+            if algid == 0:
+                sortalg = ns.PATH
+            else:
+                sortalg = 0
 
-        return natsorted(list,alg=sortalg,reverse=isreverse)
+            return natsorted(list,alg=sortalg,reverse=isreverse)
+        else:
+            return list
