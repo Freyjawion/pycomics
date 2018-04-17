@@ -1,13 +1,12 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
-import os
-
 from natsort import natsorted, ns
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QStandardItem, QStandardItemModel
 from PyQt5.QtWidgets import (QApplication, QButtonGroup, QDialog, QHBoxLayout,
-                             QListView, QPushButton, QRadioButton, QVBoxLayout,QLabel)
+                             QLabel, QListView, QPushButton, QRadioButton,
+                             QVBoxLayout)
 
 
 class ListManager(QDialog):
